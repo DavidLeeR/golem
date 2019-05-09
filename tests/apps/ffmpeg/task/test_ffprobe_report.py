@@ -1,4 +1,7 @@
+import copy
 from unittest import TestCase
+
+from parameterized import parameterized
 
 from tests.apps.ffmpeg.task.ffprobe_report import FfprobeFormatReport
 from tests.apps.ffmpeg.task.ffprobe_report_sample_reports import \
@@ -162,3 +165,26 @@ class TestFfprobeFormatReport(TestCase):
         self.assertEqual(report.duration.duration, 5.64)
         self.assertEqual(report.start_time.duration, 0)
         self.assertEqual(report.program_count, 0)
+
+    @parameterized.expand([
+        ('webm', 'matroska,webm'),
+        ('mov', 'mov, mp4, m4a, 3gp, 3g2, mj2'),
+        ('mpegvideo', 'mpeg'),
+        ('matroska,webm', 'webm'),
+        ('mov, mp4, m4a, 3gp, 3g2, mj2', 'mov'),
+        ('mpeg', 'mpegvideo'),
+    ])
+    def test_that_format_name_in_field_name_should_work_correctly(
+            self,
+            first_format_name,
+            second_format_name,
+    ):
+        first_raw_report = copy.deepcopy(RAW_REPORT_ORIGINAL)
+        first_raw_report['format']['format_name'] = first_format_name
+        first_report = FfprobeFormatReport(first_raw_report)
+
+        second_raw_report = copy.deepcopy(RAW_REPORT_ORIGINAL)
+        second_raw_report['format']['format_name'] = second_format_name
+        second_report = FfprobeFormatReport(second_raw_report)
+
+        self.assertEqual(first_report, second_report)

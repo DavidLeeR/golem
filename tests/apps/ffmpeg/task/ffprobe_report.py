@@ -121,8 +121,11 @@ class FfprobeFormatReport:
         return streams_dict
 
     @property
-    def format_name(self) -> Optional[str]:
-        return self._raw_report.get('format', {}).get('format_name', None)
+    def format_name(self) -> 'FieldName':
+        return FieldName(
+            self._raw_report.get('format', {}).get('format_name', None),
+            use_workaround=True,
+        )
 
     @property
     def duration(self) -> 'FuzzyDuration':
@@ -356,6 +359,49 @@ class FfprobeFormatReport:
             messages.append(f'{attr}: {str(getattr(self, attr))}')
         return f'FfprobeFormatReport({", ".join(messages)}. ' \
             f'Streams: {self.stream_reports.__repr__()})'
+
+
+class FieldName:
+    def __init__(self, field_name: str, use_workaround: bool = False) -> None:
+        self._field_name = field_name
+        self._use_workaround = use_workaround
+
+    def check_equality_regardless_of_order(self, other, first, second):
+        return (self.field_name == first and other.field_name == second) or \
+               (self.field_name == second and other.field_name == first)
+
+    @property
+    def field_name(self) -> str:
+        return self._field_name
+
+    def __eq__(self, other):
+        if self._use_workaround is False:
+            return self.field_name == other.field_name
+        else:
+            # this is temporary workaround for GF-160. Ffprobe.format_name
+            # returns muxers, which could be different. Changes as below should
+            # be threaten as equal
+            if self.field_name == other.field_name is True:
+                return True
+            else:
+                workaround_results = [
+                    self.check_equality_regardless_of_order(
+                        other,
+                        'webm',
+                        'matroska,webm',
+                    ),
+                    self.check_equality_regardless_of_order(
+                        other,
+                        'mov',
+                        'mov, mp4, m4a, 3gp, 3g2, mj2',
+                    ),
+                    self.check_equality_regardless_of_order(
+                        other,
+                        'mpegvideo',
+                        'mpeg',
+                    )
+                ]
+                return any(workaround_results)
 
 
 class FuzzyDuration:
