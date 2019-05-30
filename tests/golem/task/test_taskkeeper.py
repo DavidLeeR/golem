@@ -70,7 +70,7 @@ class TestTaskHeaderKeeper(LogTestCase):
 
         e = Environment()
         e.accept_tasks = True
-        tk.environments_manager.add_environment(e)
+        tk.old_env_manager.add_environment(e)
         supported = tk.check_support(header)
         self.assertFalse(supported)
         self.assertIn(UnsupportReason.MAX_PRICE, supported.desc)
@@ -96,7 +96,7 @@ class TestTaskHeaderKeeper(LogTestCase):
             task_archiver=tar)
         e = Environment()
         e.accept_tasks = True
-        tk.environments_manager.add_environment(e)
+        tk.old_env_manager.add_environment(e)
 
         task_header = get_task_header()
         task_id = task_header.task_id
@@ -152,7 +152,7 @@ class TestTaskHeaderKeeper(LogTestCase):
         self.assertIsNone(tk.get_task())
         e = Environment()
         e.accept_tasks = True
-        tk.environments_manager.add_environment(e)
+        tk.old_env_manager.add_environment(e)
         task_header2 = get_task_header("xyz")
         self.assertTrue(tk.add_task_header(task_header2))
         th = tk.get_task()
@@ -166,7 +166,7 @@ class TestTaskHeaderKeeper(LogTestCase):
             min_price=10)
         e = Environment()
         e.accept_tasks = True
-        tk.environments_manager.add_environment(e)
+        tk.old_env_manager.add_environment(e)
         task_header = get_task_header()
         task_header.deadline = timeout_to_deadline(10)
         assert tk.add_task_header(task_header)
@@ -200,7 +200,7 @@ class TestTaskHeaderKeeper(LogTestCase):
             node=dt_p2p_factory.Node(),
             min_price=10,
             task_archiver=tar)
-        tk.environments_manager.add_environment(e)
+        tk.old_env_manager.add_environment(e)
         task_header = get_task_header("good")
         assert tk.add_task_header(task_header)
         tar.add_task.assert_called_with(mock.ANY)
@@ -338,7 +338,7 @@ class TestTaskHeaderKeeper(LogTestCase):
             min_price=10)
         e = Environment()
         e.accept_tasks = True
-        tk.environments_manager.add_environment(e)
+        tk.old_env_manager.add_environment(e)
 
         # Supported task
         thd = get_task_header("good")

@@ -15,11 +15,12 @@ from typing import (
     Set,
 )
 
+from golem.envs.manager import EnvironmentManager
 from golem_messages import exceptions as msg_exceptions
 from golem_messages import message
 from golem_messages.datastructures import tasks as dt_tasks
 from pydispatch import dispatcher
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, Deferred
 
 from apps.appsmanager import AppsManager
 from apps.core.task.coretask import CoreTask
@@ -106,7 +107,8 @@ class TaskServer(
         self.node = node
         self.task_archiver = task_archiver
         self.task_keeper = TaskHeaderKeeper(
-            environments_manager=client.environments_manager,
+            old_env_manager=client.environments_manager,
+            new_env_manager=EnvironmentManager(),
             node=self.node,
             min_price=config_desc.min_price,
             task_archiver=task_archiver)
@@ -225,7 +227,7 @@ class TaskServer(
         CoreTask.VERIFICATION_QUEUE.resume()
 
     def get_environment_by_id(self, env_id):
-        return self.task_keeper.environments_manager.get_environment_by_id(
+        return self.task_keeper.old_env_manager.get_environment_by_id(
             env_id)
 
     def request_task_by_id(self, task_id: str) -> None:
@@ -504,12 +506,14 @@ class TaskServer(
         if wtr:
             wtr.already_sending = False
 
-    def change_config(self, config_desc, run_benchmarks=False):
+    @inlineCallbacks
+    def change_config(self, config_desc, run_benchmarks=False) -> Deferred:
         PendingConnectionsServer.change_config(self, config_desc)
         self.config_desc = config_desc
-        self.task_keeper.change_config(config_desc)
-        return self.task_computer.change_config(
+        yield self.task_keeper.change_config(config_desc)
+        result = yield self.task_computer.change_config(
             config_desc, run_benchmarks=run_benchmarks)
+        return result
 
     def get_task_computer_root(self):
         return os.path.join(self.client.datadir, "ComputerRes")

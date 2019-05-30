@@ -8,7 +8,7 @@ import uuid
 from threading import Lock
 
 from pydispatch import dispatcher
-from twisted.internet.defer import Deferred, TimeoutError
+from twisted.internet.defer import Deferred, TimeoutError, inlineCallbacks
 
 from golem.clientconfigdescriptor import ClientConfigDescriptor
 from golem.core.common import deadline_to_timeout
@@ -256,7 +256,7 @@ class TaskComputer(object):
             config_desc: ClientConfigDescriptor,
             in_background: bool = True,
             run_benchmarks: bool = False
-    ) -> Optional[Deferred]:
+    ) -> Deferred:
         self.dir_manager = DirManager(
             self.task_server.get_task_computer_root())
         self.task_request_frequency = config_desc.task_request_interval
@@ -272,19 +272,20 @@ class TaskComputer(object):
         for l in self.listeners:
             l.config_changed()
 
+    @inlineCallbacks
     def change_docker_config(
             self,
             config_desc: ClientConfigDescriptor,
             run_benchmarks: bool,
             work_dir: Path,
             in_background: bool = True
-    ) -> Optional[Deferred]:
+    ) -> Deferred:
 
         dm = self.docker_manager
         assert isinstance(dm, DockerManager)
         dm.build_config(config_desc)
 
-        sync_wait(self.docker_cpu_env.clean_up())
+        yield self.docker_cpu_env.clean_up()
         self.docker_cpu_env.update_config(DockerCPUConfig(
             work_dir=work_dir,
             cpu_count=config_desc.num_cores,
@@ -294,17 +295,18 @@ class TaskComputer(object):
                 to_unit=MemSize.mebi
             )
         ))
-        sync_wait(self.docker_cpu_env.prepare())
+        yield self.docker_cpu_env.prepare()
 
-        deferred = Deferred()
         if not dm.hypervisor and run_benchmarks:
+            deferred = Deferred()
             self.task_server.benchmark_manager.run_all_benchmarks(
                 deferred.callback, deferred.errback
             )
-            return deferred
+            return (yield deferred)
 
         if dm.hypervisor and self.use_docker_manager:  # noqa pylint: disable=no-member
             self.lock_config(True)
+            deferred = Deferred()
 
             def status_callback():
                 return self.is_computing()
@@ -329,7 +331,7 @@ class TaskComputer(object):
                 work_dir=work_dir,
                 in_background=in_background)
 
-            return deferred
+            return (yield deferred)
 
         return None
 
